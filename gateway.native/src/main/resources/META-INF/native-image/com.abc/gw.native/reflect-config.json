@@ -1,0 +1,32 @@
+[
+	{
+		"name": "com.abc.gw.model.LimiterConfig",
+		"methods": [
+			{
+				"name": "<init>",
+				"parameterTypes": []
+			},
+			{
+				"name": "setLimits",
+				"parameterTypes": [
+					"java.lang.String"
+				]
+			}
+		]
+	},
+	{
+		"name": "com.abc.gw.model.BreakerConfig",
+		"methods": [
+			{
+				"name": "<init>",
+				"parameterTypes": []
+			},
+			{
+				"name": "setTimeouts",
+				"parameterTypes": [
+					"java.lang.String"
+				]
+			}
+		]
+	}
+]

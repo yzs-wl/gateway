@@ -1,0 +1,24 @@
+# logs
+logs/
+
+# eclipse
+.settings/
+.classpath
+.project
+
+# idea
+.idea/
+*.iml
+
+# temp
+target/
+
+.DS_Store
+
+.gradle/
+
+# vue
+node_modules/
+dist/
+.vscode
+

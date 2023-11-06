@@ -1,0 +1,35 @@
+server:
+  port: 7777
+  servlet:
+      context-path: /
+spring:
+  main:
+    web-application-type: reactive
+  application:
+    name: gateway-server
+  cloud:
+    gateway:
+      routes:
+        - id: test
+          uri: lb://test
+          predicates:
+            - Path=/test/**
+          filters:
+            - StripPrefix=1
+            - name: customCircuitBreaker
+              args:
+                timeouts: /timeout1=5000;/timeout2=3000
+            - name: customRateLimiter
+              args:
+                limits: /limit1=5;/limit2=20m
+    loadbalancer:
+       ribbon:
+          enabled: false
+    nacos:
+       config:
+          import-check:
+             enabled: false
+logging:
+  level:
+   root: info
+   org.springframework: info

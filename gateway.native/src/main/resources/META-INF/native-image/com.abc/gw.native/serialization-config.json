@@ -1,0 +1,14 @@
+[
+ {
+    "name": "com.abc.gw.model.BreakerConfig"
+  },
+  {
+    "name": "com.abc.gw.model.LimiterConfig"
+  },
+  {
+    "name": "com.abc.gw.model.BreakerApi"
+  },
+  {
+    "name": "com.abc.gw.model.LimiterApi"
+  } 
+]

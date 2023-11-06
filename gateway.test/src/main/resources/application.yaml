@@ -1,0 +1,14 @@
+server:
+   port: 10001
+   servlet:
+      context-path: /
+spring:
+   application:
+      name: test
+   output:
+      ansi:
+         enabled: detect
+logging:
+  level:
+   root: INFO
+   org.springframework: info
