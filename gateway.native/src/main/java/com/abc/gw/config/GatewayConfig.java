@@ -1,8 +1,9 @@
 
 package com.abc.gw.config;
 
-import java.net.URI;
+import java.util.Properties;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.config.GatewayLoadBalancerProperties;
 import org.springframework.cloud.loadbalancer.annotation.LoadBalancerClients;
 import org.springframework.cloud.loadbalancer.support.LoadBalancerClientFactory;
@@ -13,8 +14,6 @@ import org.springframework.security.config.annotation.method.configuration.Enabl
 import org.springframework.security.config.annotation.web.reactive.EnableWebFluxSecurity;
 import org.springframework.security.config.web.server.ServerHttpSecurity;
 import org.springframework.security.web.server.SecurityWebFilterChain;
-import org.springframework.security.web.server.authentication.logout.RedirectServerLogoutSuccessHandler;
-import org.springframework.security.web.server.authentication.logout.ServerLogoutSuccessHandler;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.reactive.CorsWebFilter;
 import org.springframework.web.cors.reactive.UrlBasedCorsConfigurationSource;
@@ -38,12 +37,25 @@ public class GatewayConfig implements WebFluxConfigurer {
 		return http.build();
 	}
 
-	public ServerLogoutSuccessHandler logoutSuccessHandler(String uri) {
-		RedirectServerLogoutSuccessHandler successHandler = new RedirectServerLogoutSuccessHandler();
-		successHandler.setLogoutSuccessUrl(URI.create(uri));
-		return successHandler;
-	}
+	@Value("${spring.cloud.gateway.route.config.group:DEFAULT_GROUP}")
+    private String group;
 
+    @Value("${spring.cloud.gateway.route.config.dataid:gateway}")
+    private String dataid;
+
+    @Value("${spring.cloud.gateway.route.config.timeout:5000}")
+    private int timeout;
+
+    @Value("${spring.cloud.nacos.config.server-addr:127.0.0.1:8848}")
+    private String serverAddr;
+    
+    @Value("${spring.cloud.nacos.config.username:nacos}")
+    private String username;
+    
+    @Value("${spring.cloud.nacos.config.password:nacos}")
+    private String password;
+    
+    
 	@Bean
 	public CorsWebFilter corsWebFilter() {
 		CorsConfiguration config = new CorsConfiguration();
@@ -72,4 +84,13 @@ public class GatewayConfig implements WebFluxConfigurer {
 			GatewayLoadBalancerProperties properties) {
 		return new CustomReactiveLoadBalancerClientFilter(clientFactory, properties);
 	}
+	
+	@Bean
+    public DynamicRoute dynamicRoute() {
+		Properties properties = new Properties();
+		properties.put("serverAddr", this.serverAddr);
+		properties.put("username", this.username);
+		properties.put("password", this.password);
+        return new DynamicRoute(group, dataid, timeout, properties);
+    }
 }
