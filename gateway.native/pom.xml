@@ -13,6 +13,7 @@
 		<spring-cloud-alibaba.version>2022.0.0.0</spring-cloud-alibaba.version>
 		<spring.cloud.version>2022.0.4</spring.cloud.version>
 		<spring.boot.version>3.0.12</spring.boot.version>
+		<native.maven.pulgin.version>0.9.27</native.maven.pulgin.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -36,26 +37,26 @@
 			<artifactId>spring-cloud-loadbalancer</artifactId>
 		</dependency>
 		<dependency>
-	        <groupId>org.springframework.cloud</groupId>
-	        <artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
-	    </dependency>
-		<dependency>
-		    <groupId>org.springframework.cloud</groupId>
-		    <artifactId>spring-cloud-starter-circuitbreaker-reactor-resilience4j</artifactId>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-circuitbreaker-resilience4j</artifactId>
 		</dependency>
 		<dependency>
-	        <groupId>org.springframework.boot</groupId>
-	        <artifactId>spring-boot-starter-security</artifactId>
-	        <exclusions>
-	        	<exclusion>
-	        		<groupId>org.springframework</groupId>
-	        		<artifactId>spring-web</artifactId>
-	        	</exclusion>
-	        </exclusions>
-        </dependency>
-        <dependency>
-		    <groupId>com.fasterxml.jackson.dataformat</groupId>
-		    <artifactId>jackson-dataformat-yaml</artifactId>
+			<groupId>org.springframework.cloud</groupId>
+			<artifactId>spring-cloud-starter-circuitbreaker-reactor-resilience4j</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+			<exclusions>
+				<exclusion>
+					<groupId>org.springframework</groupId>
+					<artifactId>spring-web</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>com.fasterxml.jackson.dataformat</groupId>
+			<artifactId>jackson-dataformat-yaml</artifactId>
 		</dependency>
 	</dependencies>
 
@@ -90,13 +91,15 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+				<version>${spring.boot.version}</version>
 				<configuration>
 					<mainClass>com.abc.gw.NativeServer</mainClass>
 				</configuration>
 				<executions>
 					<execution>
+						<id>process-aot</id>
 						<goals>
-							<goal>repackage</goal>
+							<goal>process-aot</goal>
 						</goals>
 					</execution>
 				</executions>
@@ -104,9 +107,13 @@
 			<plugin>
 				<groupId>org.graalvm.buildtools</groupId>
 				<artifactId>native-maven-plugin</artifactId>
+				<version>${native.maven.pulgin.version}</version>
 				<configuration>
 					<imageName>${project.artifactId}</imageName>
 					<mainClass>com.abc.gw.NativeServer</mainClass>
+					<metadataRepository>
+						<enabled>true</enabled>
+					</metadataRepository>
 					<buildArgs>
 						--no-fallback
 						--initialize-at-run-time=sun.net.dns.ResolverConfigurationImpl
