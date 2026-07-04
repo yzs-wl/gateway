@@ -1,0 +1,35 @@
+# Cluster mode: Redis cache + Nacos config/discovery
+# Activate via: --spring.config.additional-location=application-cluster.yml
+# No need to create empty yml files in Nacos console - optional: prefix handles missing configs
+
+spring:
+  config:
+    import: "optional:nacos:pangu-gateway.yml"
+  cloud:
+    nacos:
+      username: ${NACOS_USERNAME:nacos}
+      password: ${NACOS_PASSWORD:nacos}
+      config:
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        enabled: true
+      discovery:
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        enabled: true
+
+pangu:
+  gateway:
+    cache-type: redis
+    storage-type: nacos
+
+    # Redis connection - override via env vars for production
+    redis-host: ${PANGU_GATEWAY_REDIS_HOST:127.0.0.1}
+    redis-port: ${PANGU_GATEWAY_REDIS_PORT:6379}
+    redis-password: ${PANGU_GATEWAY_REDIS_PASSWORD:}
+    redis-database: ${PANGU_GATEWAY_REDIS_DATABASE:0}
+
+    rate-limit-enabled: true
+    circuit-breaker-enabled: true

@@ -1,0 +1,259 @@
+server:
+  port: ${SERVER_PORT:8088}
+
+spring:
+  application:
+    name: ${NACOS_SERVICE:pangu-gateway}
+
+  config:
+    additional-location: ${SPRING_CONFIG_ADDITIONAL_LOCATION:}
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration
+      - org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration
+      - org.springframework.cloud.gateway.config.GatewayRedisAutoConfiguration
+      - org.springframework.cloud.gateway.config.GatewayClassPathWarningAutoConfiguration
+      # ReactiveUserDetailsServiceAutoConfiguration generates random password, unnecessary for gateway
+      - org.springframework.boot.autoconfigure.security.reactive.ReactiveUserDetailsServiceAutoConfiguration
+      # Servlet-based security conflicts with reactive security in WebFlux gateway
+      - org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.servlet.SecurityFilterAutoConfiguration
+      # Servlet web container conflicts with Netty (WebFlux gateway should use Netty)
+      - org.springframework.boot.autoconfigure.web.servlet.WebMvcAutoConfiguration
+      - org.springframework.boot.autoconfigure.web.servlet.ServletWebServerFactoryAutoConfiguration
+      # AOP auto-configuration - disabled for GraalVM Native Image compatibility
+      - org.springframework.boot.autoconfigure.aop.AopAutoConfiguration
+
+  cloud:
+    nacos:
+      username: ${NACOS_USERNAME:nacos}
+      password: ${NACOS_PASSWORD:nacos}
+      discovery:
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        enabled: ${NACOS_DISCOVERY_ENABLED:false}
+        metadata:
+          env: ${NACOS_SERVICE_ENV:default}
+          version: ${NACOS_SERVICE_VERSION:1.0.0}
+      config:
+        server-addr: ${NACOS_ADDR:127.0.0.1:8848}
+        namespace: ${NACOS_NAMESPACE:public}
+        group: ${NACOS_GROUP:DEFAULT_GROUP}
+        file-extension: ${NACOS_CONFIG_FORMAT:yml}
+        enabled: ${NACOS_CONFIG_ENABLED:false}
+        # Shared configs (common config across all services)
+        shared-configs:
+          - data-id: ${NACOS_SHARED_DATA_ID:common.yml}
+            group: ${NACOS_SHARED_GROUP:DEFAULT_GROUP}
+            refresh: true
+        # Extension configs (gateway-specific configs)
+        extension-configs:
+          - data-id: ${NACOS_EXT_DATA_ID:gateway-routes.yml}
+            group: ${NACOS_EXT_GROUP:DEFAULT_GROUP}
+            refresh: true
+          - data-id: ${NACOS_EXT_AUTH_DATA_ID:gateway-auth.yml}
+            group: ${NACOS_EXT_GROUP:DEFAULT_GROUP}
+            refresh: true
+
+    gateway:
+      server:
+        webflux:
+          discovery:
+            locator:
+              enabled: ${GATEWAY_DISCOVERY_ENABLED:true}
+              lower-case-service-id: true
+      default-filters:
+        - name: Retry
+          args:
+            retries: ${GATEWAY_RETRY_COUNT:3}
+            statuses: BAD_GATEWAY,GATEWAY_TIMEOUT
+            methods: GET
+            backoff:
+              firstBackoff: ${GATEWAY_RETRY_FIRST_BACKOFF:100ms}
+              maxBackoff: ${GATEWAY_RETRY_MAX_BACKOFF:500ms}
+              factor: 2
+              basedOnPreviousValue: false
+# Resilience4j Circuit Breaker
+# Note: Only define shared configs here. Instances are registered dynamically
+# by RouteService.registerCircuitBreakerConfig() based on FuseModel.
+# Avoiding "instances.<name>.baseConfig: <name>" to prevent Resilience4j 2.3.0
+# circular reference detection (instance name == config name triggers false positive).
+resilience4j:
+  circuitbreaker:
+    configs:
+      default:
+        slidingWindowSize: ${CB_SLIDING_WINDOW:10}
+        minimumNumberOfCalls: ${CB_MIN_CALLS:5}
+        failureRateThreshold: ${CB_FAILURE_RATE:50}
+        waitDurationInOpenState: ${CB_WAIT_DURATION:10s}
+        permittedNumberOfCallsInHalfOpenState: ${CB_HALF_OPEN_CALLS:3}
+        automaticTransitionFromOpenToHalfOpenEnabled: true
+# ==============================================================
+# Smart Gateway Business Configuration
+# These are defaults - overridden by Nacos config at runtime
+# ==============================================================
+pangu:
+  gateway:
+    # --- Cache mode ---
+    # local: Caffeine in-process (no Redis needed, single-node)
+    # redis: Distributed (Redis needed, cluster deployment)
+    cache-type: ${PANGU_GATEWAY_CACHE_TYPE:local}
+    local-cache-max-size: ${PANGU_GATEWAY_LOCAL_CACHE_MAX:10000}
+    local-cache-expire-hours: ${PANGU_GATEWAY_LOCAL_CACHE_EXPIRE:24}
+
+    # --- Storage mode (config persistence + cluster sync) ---
+    # file: Memory + File (default, single node, config persists as local JSON files)
+    # redis: Memory + Redis (simple cluster, Redis pub/sub pushes changes to all nodes)
+    # nacos: Memory + Nacos (microservice cluster, Nacos pushes config to all nodes)
+    storage-type: ${PANGU_GATEWAY_STORAGE_TYPE:file}
+    storage-file-path: ${PANGU_GATEWAY_STORAGE_FILE_PATH:./data/gateway}
+
+    # --- Redis config (only used when cache-type=redis) ---
+    redis-host: ${PANGU_GATEWAY_REDIS_HOST:127.0.0.1}
+    redis-port: ${PANGU_GATEWAY_REDIS_PORT:6379}
+    redis-password: ${PANGU_GATEWAY_REDIS_PASSWORD:}
+    redis-database: ${PANGU_GATEWAY_REDIS_DATABASE:0}
+
+    # --- Static resource caching ---
+    resource-cacheable: ${PANGU_GATEWAY_RESOURCE_CACHE:true}
+    resource-cache-hour: ${PANGU_GATEWAY_RESOURCE_CACHE_HOUR:10}
+    resource-cache-type: ${PANGU_GATEWAY_RESOURCE_TYPES:.html,.js,.css,.gif,.png,.jpg,.jpeg,.ico,.woff2,.woff,.tt,.ttf,.map}
+
+    # --- Performance monitoring ---
+    slow-request-threshold: ${PANGU_GATEWAY_SLOW_THRESHOLD:2000}
+
+    # --- CORS ---
+    cors-url: "${PANGU_GATEWAY_CORS_URL:*}"
+    cors-method: "${PANGU_GATEWAY_CORS_METHOD:get,post,put,delete}"
+
+    # --- JWT ---
+    jwt-token-timeout: ${PANGU_GATEWAY_JWT_TIMEOUT:3600}
+    jwt-secret: ${PANGU_GATEWAY_JWT_SECRET:pangu-gateway-jwt-secret-key-must-be-at-least-256-bits-long-for-hs256}
+
+    # --- Security filters ---
+    sign-enabled: ${PANGU_GATEWAY_SIGN_ENABLED:true}
+    sign-secret: ${PANGU_GATEWAY_SIGN_SECRET:pangu-gateway-sign-secret-hmac-sha256-key}
+    sql-inject-filter-enabled: ${PANGU_GATEWAY_SQL_FILTER:true}
+    xss-filter-enabled: ${PANGU_GATEWAY_XSS_FILTER:true}
+    auth-filter-enabled: ${PANGU_GATEWAY_AUTH_FILTER:true}
+    unsign-uris: "${PANGU_GATEWAY_UNSIGN_URIS:/test/,/api/gateway/,/api/auth/login,/api/auth/refresh,/actuator}"
+
+    # --- Gray release ---
+    gray-enabled: ${PANGU_GATEWAY_GRAY_ENABLED:true}
+
+    # --- Rate limiting ---
+    rate-limit-enabled: ${PANGU_GATEWAY_RATE_LIMIT:true}
+    default-replenish-rate: ${PANGU_GATEWAY_RATE_REPLENISH:10}
+    default-burst-capacity: ${PANGU_GATEWAY_RATE_BURST:20}
+    default-requested-tokens: ${PANGU_GATEWAY_RATE_TOKENS:1}
+
+    # --- Circuit breaker ---
+    circuit-breaker-enabled: ${PANGU_GATEWAY_CB_ENABLED:true}
+
+    # --- Access logging ---
+    access-log-enabled: ${PANGU_GATEWAY_ACCESS_LOG:true}
+    slow-request-log-enabled: ${PANGU_GATEWAY_SLOW_LOG:true}
+
+    # --- Fallback timeout ---
+    fallback-timeout: ${PANGU_GATEWAY_FALLBACK_TIMEOUT:30000}
+
+    # --- Nacos config data IDs (business config sources) ---
+    route-config-group: ${PANGU_GATEWAY_ROUTE_GROUP:DEFAULT_GROUP}
+    route-config-data-id: ${PANGU_GATEWAY_ROUTE_DATA_ID:gateway}
+    route-config-topic: ${PANGU_GATEWAY_ROUTE_TOPIC:routes}
+    route-message-topic: ${PANGU_GATEWAY_ROUTE_MSG:route-refresh}
+
+    auth-config-group: ${PANGU_GATEWAY_AUTH_GROUP:DEFAULT_GROUP}
+    auth-config-data-id: ${PANGU_GATEWAY_AUTH_DATA_ID:gateway-auths}
+    auth-message-topic: ${PANGU_GATEWAY_AUTH_MSG:auth-refresh}
+
+    gray-config-group: ${PANGU_GATEWAY_GRAY_GROUP:DEFAULT_GROUP}
+    gray-config-data-id: ${PANGU_GATEWAY_GRAY_DATA_ID:gateway-grays}
+    gray-message-topic: ${PANGU_GATEWAY_GRAY_MSG:gray-refresh}
+
+    security-config-group: ${PANGU_GATEWAY_SECURITY_GROUP:DEFAULT_GROUP}
+    security-config-data-id: ${PANGU_GATEWAY_SECURITY_DATA_ID:gateway-securitys}
+    security-message-topic: ${PANGU_GATEWAY_SECURITY_MSG:security-refresh}
+
+    # --- AI Gateway Configuration ---
+    ai-enabled: ${PANGU_GATEWAY_AI_ENABLED:true}
+    ai-prompt-injection-enabled: ${PANGU_GATEWAY_AI_PROMPT_INJECTION:true}
+    ai-pii-desensitization-enabled: ${PANGU_GATEWAY_AI_PII:true}
+    ai-model-routing-enabled: ${PANGU_GATEWAY_AI_ROUTING:true}
+    ai-routing-strategy: ${PANGU_GATEWAY_AI_ROUTING_STRATEGY:priority}
+    ai-default-request-tokens: ${PANGU_GATEWAY_AI_DEFAULT_REQ_TOKENS:500}
+    ai-default-rpm-limit: ${PANGU_GATEWAY_AI_RPM:60}
+    ai-default-tpm-limit: ${PANGU_GATEWAY_AI_TPM:100000}
+    ai-default-monthly-token-budget: ${PANGU_GATEWAY_AI_MONTHLY_BUDGET:1000000}
+    ai-default-input-cost-per-1k: ${PANGU_GATEWAY_AI_INPUT_COST:0.01}
+    ai-default-output-cost-per-1k: ${PANGU_GATEWAY_AI_OUTPUT_COST:0.03}
+
+    # --- Nacos config for AI ---
+    ai-config-group: ${PANGU_GATEWAY_AI_GROUP:DEFAULT_GROUP}
+    ai-config-data-id: ${PANGU_GATEWAY_AI_DATA_ID:gateway-ai}
+    ai-message-topic: ${PANGU_GATEWAY_AI_MSG:ai-refresh}
+
+    # --- Metrics Time-Series Configuration ---
+    # memory: In-memory only (default, single node, data lost on restart)
+    # redis: Redis Sorted Set (persistent, cluster deployment, data survives restart)
+    metrics-storage-type: ${PANGU_GATEWAY_METRICS_STORAGE:memory}
+    metrics-retention-days: ${PANGU_GATEWAY_METRICS_RETENTION:30}
+    metrics-snapshot-interval-seconds: ${PANGU_GATEWAY_METRICS_INTERVAL:60}
+
+  # --- Alert Configuration ---
+  alert:
+    enabled: ${PANGU_ALERT_ENABLED:false}
+    dingtalk:
+      enabled: ${PANGU_DINGTALK_ENABLED:false}
+      webhook-url: ${PANGU_DINGTALK_WEBHOOK:}
+      secret: ${PANGU_DINGTALK_SECRET:}
+    wecom:
+      enabled: ${PANGU_WECOM_ENABLED:false}
+      webhook-url: ${PANGU_WECOM_WEBHOOK:}
+    email:
+      enabled: ${PANGU_EMAIL_ENABLED:false}
+      to: ${PANGU_EMAIL_TO:}
+      from: ${PANGU_EMAIL_FROM:}
+
+  # --- Audit Configuration ---
+  audit:
+    enabled: ${PANGU_AUDIT_ENABLED:true}
+
+  # --- API Key Configuration ---
+  apikey:
+    enabled: ${PANGU_APIKEY_ENABLED:true}
+
+  # --- WebSocket Configuration ---
+  websocket:
+    enabled: ${PANGU_WEBSOCKET_ENABLED:true}
+
+  # --- GM Crypto (National Secret Algorithm) Configuration ---
+  crypto:
+    gm-enabled: ${PANGU_CRYPTO_GM_ENABLED:false}
+    # SM4 key (32 hex characters = 128 bits)
+    sm4-key: ${PANGU_CRYPTO_SM4_KEY:0123456789abcdef0123456789abcdef}
+    # SM4 IV (32 hex characters = 128 bits)
+    sm4-iv: ${PANGU_CRYPTO_SM4_IV:fedcba9876543210fedcba9876543210}
+
+logging:
+  level:
+    org.pangu.gateway: ${PANGU_GATEWAY_LOG_LEVEL:INFO}
+    org.springframework.cloud.gateway: ${GATEWAY_LOG_LEVEL:INFO}
+    AUDIT: ${AUDIT_LOG_LEVEL:INFO}
+    io.opentelemetry: ${OTEL_LOG_LEVEL:WARN}
+
+# Mail Configuration (for email alerts)
+spring.mail:
+  host: ${MAIL_HOST:smtp.example.com}
+  port: ${MAIL_PORT:587}
+  username: ${MAIL_USERNAME:}
+  password: ${MAIL_PASSWORD:}
+  properties:
+    mail:
+      smtp:
+        auth: true
+        starttls:
+          enable: true
