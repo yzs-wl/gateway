@@ -189,11 +189,6 @@ All configuration items support environment variable overrides. See `application
 | `PANGU_GATEWAY_CACHE_TYPE` | `caffeine` | 缓存模式：caffeine / redis |
 | `SERVER_PORT` | `8088` | 网关监听端口 |
 
----
-
-## 🔗 友情链接 / Friendly Links
-
-- [🎮 Xbox Admin](https://xbox-admin.icu) — 企业信息化系统智能搭建工具（RBAC 权限 / AI 智能对话 / 设计中心 / BPM 流程引擎 / 低代码模型）
 
 ---
 
